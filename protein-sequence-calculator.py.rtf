@@ -1,0 +1,195 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1504\cocoasubrtf840
+{\fonttbl\f0\fmodern\fcharset0 Courier;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red144\green1\blue18;\red245\green245\blue245;
+\red131\green0\blue165;\red15\green112\blue1;\red19\green85\blue52;\red31\green99\blue128;\red0\green0\blue255;
+\red86\green65\blue25;\red0\green0\blue109;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;\cssrgb\c63922\c8235\c8235;\cssrgb\c96863\c96863\c96863;
+\cssrgb\c59216\c13725\c70588;\cssrgb\c0\c50196\c0;\cssrgb\c6667\c40000\c26667;\cssrgb\c14510\c46275\c57647;\cssrgb\c0\c0\c100000;
+\cssrgb\c41569\c32157\c12941;\cssrgb\c0\c6275\c50196;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\sl380\partightenfactor0
+
+\f0\fs28 \cf2 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf3 \cb4 \strokec3 """\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 Protein Sequence Calculator\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 ---------------------------------\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 Features:\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 - Validates protein sequence (A, R, N, D, C, E, Q, G, H, I, L, K, M, F, P, S, T, W, Y, V)\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 - Length, amino-acid composition\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 - Molecular weight (average mass). Formula: sum(free AA masses) - (n-1)*18.01528\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 - Extinction coefficient at 280 nm (assuming cystines form in pairs):\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3   
+\f1 \uc0\u949 
+\f0  = 5500*Trp + 1490*Tyr + 125*Cystine_pairs\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 - Estimated absorbance A280 for 1 mg/mL (given 
+\f1 \uc0\u949 
+\f0  and MW)\cf2 \cb1 \strokec2 \
+\
+\cf3 \cb4 \strokec3 How to use (Google Colab or any Python):\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 1) Copy this whole cell into a new Colab notebook and run it.\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 2) When it asks, paste your protein sequence letters (only AAs, no spaces). \cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3    Example: MGTKALLAGLVLAFSASA\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 3) Dekhna results neeche aa jayenge. (Roman Urdu guidance is in comments)\cf2 \cb1 \strokec2 \
+\
+\cf3 \cb4 \strokec3 Notes:\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 - Ambiguous letters (B, Z, X, J, U, O) will be ignored with a warning.\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 - Masses are average masses of free amino acids; reported protein MW is approximate.\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3 """\cf2 \cb1 \strokec2 \
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf5 \cb4 \strokec5 from\cf2 \strokec2  collections \cf5 \strokec5 import\cf2 \strokec2  Counter\cb1 \
+\cf5 \cb4 \strokec5 import\cf2 \strokec2  re\cb1 \
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf6 \cb4 \strokec6 # ------------------ Settings & Constants ------------------\cf2 \cb1 \strokec2 \
+\cf6 \cb4 \strokec6 # Average masses of **free** amino acids (in Daltons) \'97 source: common biochem tables\cf2 \cb1 \strokec2 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4 AA_FREE_AVG_MASS = \{\cb1 \
+\cb4     \cf3 \strokec3 "A"\cf2 \strokec2 : \cf7 \strokec7 89.0935\cf2 \strokec2 ,  \cf6 \strokec6 # Alanine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "R"\cf2 \strokec2 : \cf7 \strokec7 174.2017\cf2 \strokec2 , \cf6 \strokec6 # Arginine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "N"\cf2 \strokec2 : \cf7 \strokec7 132.1184\cf2 \strokec2 , \cf6 \strokec6 # Asparagine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "D"\cf2 \strokec2 : \cf7 \strokec7 133.1032\cf2 \strokec2 , \cf6 \strokec6 # Aspartic acid\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "C"\cf2 \strokec2 : \cf7 \strokec7 121.1590\cf2 \strokec2 , \cf6 \strokec6 # Cysteine (reduced)\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "E"\cf2 \strokec2 : \cf7 \strokec7 147.1299\cf2 \strokec2 , \cf6 \strokec6 # Glutamic acid\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "Q"\cf2 \strokec2 : \cf7 \strokec7 146.1451\cf2 \strokec2 , \cf6 \strokec6 # Glutamine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "G"\cf2 \strokec2 : \cf7 \strokec7 75.0669\cf2 \strokec2 ,  \cf6 \strokec6 # Glycine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "H"\cf2 \strokec2 : \cf7 \strokec7 155.1552\cf2 \strokec2 , \cf6 \strokec6 # Histidine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "I"\cf2 \strokec2 : \cf7 \strokec7 131.1736\cf2 \strokec2 , \cf6 \strokec6 # Isoleucine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "L"\cf2 \strokec2 : \cf7 \strokec7 131.1736\cf2 \strokec2 , \cf6 \strokec6 # Leucine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "K"\cf2 \strokec2 : \cf7 \strokec7 146.1882\cf2 \strokec2 , \cf6 \strokec6 # Lysine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "M"\cf2 \strokec2 : \cf7 \strokec7 149.2124\cf2 \strokec2 , \cf6 \strokec6 # Methionine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "F"\cf2 \strokec2 : \cf7 \strokec7 165.1900\cf2 \strokec2 , \cf6 \strokec6 # Phenylalanine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "P"\cf2 \strokec2 : \cf7 \strokec7 115.1310\cf2 \strokec2 , \cf6 \strokec6 # Proline\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "S"\cf2 \strokec2 : \cf7 \strokec7 105.0930\cf2 \strokec2 , \cf6 \strokec6 # Serine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "T"\cf2 \strokec2 : \cf7 \strokec7 119.1197\cf2 \strokec2 , \cf6 \strokec6 # Threonine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "W"\cf2 \strokec2 : \cf7 \strokec7 204.2262\cf2 \strokec2 , \cf6 \strokec6 # Tryptophan\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "Y"\cf2 \strokec2 : \cf7 \strokec7 181.1894\cf2 \strokec2 , \cf6 \strokec6 # Tyrosine\cf2 \cb1 \strokec2 \
+\cb4     \cf3 \strokec3 "V"\cf2 \strokec2 : \cf7 \strokec7 117.1469\cf2 \strokec2 , \cf6 \strokec6 # Valine\cf2 \cb1 \strokec2 \
+\cb4 \}\cb1 \
+\
+\cb4 WATER_MASS = \cf7 \strokec7 18.01528\cf2 \strokec2   \cf6 \strokec6 # Da (H2O). Peptide bond formation releases water.\cf2 \cb1 \strokec2 \
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf6 \cb4 \strokec6 # Extinction coefficient contributors at 280 nm (1/M/cm)\cf2 \cb1 \strokec2 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4 EC_TRP = \cf7 \strokec7 5500\cf2 \cb1 \strokec2 \
+\cb4 EC_TYR = \cf7 \strokec7 1490\cf2 \cb1 \strokec2 \
+\cb4 EC_CYSTINE = \cf7 \strokec7 125\cf2 \strokec2   \cf6 \strokec6 # per disulfide bond (two Cys forming one cystine)\cf2 \cb1 \strokec2 \
+\
+\cb4 VALID_AA = \cf8 \strokec8 set\cf2 \strokec2 (AA_FREE_AVG_MASS.keys())\cb1 \
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf6 \cb4 \strokec6 # ------------------ Helper Functions ------------------\cf2 \cb1 \strokec2 \
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf9 \cb4 \strokec9 def\cf2 \strokec2  \cf10 \strokec10 clean_sequence\cf2 \strokec2 (\cf11 \strokec11 seq\cf2 \strokec2 : \cf11 \strokec11 str\cf2 \strokec2 ) -> \cf8 \strokec8 str\cf2 \strokec2 :\cb1 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     \cf3 \strokec3 """Strip whitespace, numbers, and to upper-case. Keep only A-Z letters."""\cf2 \cb1 \strokec2 \
+\cb4     seq = seq.strip().upper()\cb1 \
+\cb4     seq = re.sub(r\cf3 \strokec3 "[^A-Z]"\cf2 \strokec2 , \cf3 \strokec3 ""\cf2 \strokec2 , seq)\cb1 \
+\cb4     \cf5 \strokec5 return\cf2 \strokec2  seq\cb1 \
+\
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf9 \cb4 \strokec9 def\cf2 \strokec2  \cf10 \strokec10 validate_and_warn\cf2 \strokec2 (\cf11 \strokec11 seq\cf2 \strokec2 : \cf11 \strokec11 str\cf2 \strokec2 ) -> \cf8 \strokec8 str\cf2 \strokec2 :\cb1 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     \cf3 \strokec3 """Remove ambiguous/non-standard letters with a warning. Return cleaned seq."""\cf2 \cb1 \strokec2 \
+\cb4     bad = \cf10 \strokec10 sorted\cf2 \strokec2 (\cf8 \strokec8 set\cf2 \strokec2 (ch \cf5 \strokec5 for\cf2 \strokec2  ch \cf9 \strokec9 in\cf2 \strokec2  seq \cf5 \strokec5 if\cf2 \strokec2  ch \cf9 \strokec9 not\cf2 \strokec2  \cf9 \strokec9 in\cf2 \strokec2  VALID_AA))\cb1 \
+\cb4     \cf5 \strokec5 if\cf2 \strokec2  bad:\cb1 \
+\cb4         \cf10 \strokec10 print\cf2 \strokec2 (\cb1 \
+\cb4             \cf9 \strokec9 f\cf3 \strokec3 "Warning: These letters are not standard amino acids and will be ignored: \cf2 \strokec2 \{\cf3 \strokec3 ', '\cf2 \strokec2 .join(bad)\}\cf3 \strokec3 "\cf2 \cb1 \strokec2 \
+\cb4         )\cb1 \
+\cb4         seq = \cf3 \strokec3 ""\cf2 \strokec2 .join(ch \cf5 \strokec5 for\cf2 \strokec2  ch \cf9 \strokec9 in\cf2 \strokec2  seq \cf5 \strokec5 if\cf2 \strokec2  ch \cf9 \strokec9 in\cf2 \strokec2  VALID_AA)\cb1 \
+\cb4     \cf5 \strokec5 return\cf2 \strokec2  seq\cb1 \
+\
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf9 \cb4 \strokec9 def\cf2 \strokec2  \cf10 \strokec10 composition\cf2 \strokec2 (\cf11 \strokec11 seq\cf2 \strokec2 : \cf11 \strokec11 str\cf2 \strokec2 ) -> Counter:\cb1 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     \cf5 \strokec5 return\cf2 \strokec2  Counter(seq)\cb1 \
+\
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf9 \cb4 \strokec9 def\cf2 \strokec2  \cf10 \strokec10 molecular_weight\cf2 \strokec2 (\cf11 \strokec11 seq\cf2 \strokec2 : \cf11 \strokec11 str\cf2 \strokec2 ) -> \cf8 \strokec8 float\cf2 \strokec2 :\cb1 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     \cf5 \strokec5 if\cf2 \strokec2  \cf9 \strokec9 not\cf2 \strokec2  seq:\cb1 \
+\cb4         \cf5 \strokec5 return\cf2 \strokec2  \cf7 \strokec7 0.0\cf2 \cb1 \strokec2 \
+\cb4     n = \cf10 \strokec10 len\cf2 \strokec2 (seq)\cb1 \
+\cb4     sum_free = \cf10 \strokec10 sum\cf2 \strokec2 (AA_FREE_AVG_MASS[aa] \cf5 \strokec5 for\cf2 \strokec2  aa \cf9 \strokec9 in\cf2 \strokec2  seq)\cb1 \
+\cb4     \cf6 \strokec6 # Protein mass = sum of free AA masses - (n - 1) * mass of water released\cf2 \cb1 \strokec2 \
+\cb4     \cf5 \strokec5 return\cf2 \strokec2  sum_free - (n - \cf7 \strokec7 1\cf2 \strokec2 ) * WATER_MASS\cb1 \
+\
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf9 \cb4 \strokec9 def\cf2 \strokec2  \cf10 \strokec10 extinction_coefficient\cf2 \strokec2 (\cf11 \strokec11 seq\cf2 \strokec2 : \cf11 \strokec11 str\cf2 \strokec2 ) -> \cf8 \strokec8 int\cf2 \strokec2 :\cb1 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     comp = composition(seq)\cb1 \
+\cb4     w = comp.get(\cf3 \strokec3 "W"\cf2 \strokec2 , \cf7 \strokec7 0\cf2 \strokec2 )\cb1 \
+\cb4     y = comp.get(\cf3 \strokec3 "Y"\cf2 \strokec2 , \cf7 \strokec7 0\cf2 \strokec2 )\cb1 \
+\cb4     c = comp.get(\cf3 \strokec3 "C"\cf2 \strokec2 , \cf7 \strokec7 0\cf2 \strokec2 )\cb1 \
+\cb4     cystine_pairs = c // \cf7 \strokec7 2\cf2 \strokec2   \cf6 \strokec6 # simple assumption: cysteines form pairs\cf2 \cb1 \strokec2 \
+\cb4     ec = EC_TRP * w + EC_TYR * y + EC_CYSTINE * cystine_pairs\cb1 \
+\cb4     \cf5 \strokec5 return\cf2 \strokec2  \cf8 \strokec8 int\cf2 \strokec2 (ec)\cb1 \
+\
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf9 \cb4 \strokec9 def\cf2 \strokec2  \cf10 \strokec10 absorbance_1mg_per_ml\cf2 \strokec2 (\cf11 \strokec11 ec\cf2 \strokec2 : \cf11 \strokec11 int\cf2 \strokec2 , \cf11 \strokec11 mw\cf2 \strokec2 : \cf11 \strokec11 float\cf2 \strokec2 ) -> \cf8 \strokec8 float\cf2 \strokec2 :\cb1 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     \cf3 \strokec3 """\cf2 \cb1 \strokec2 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf3 \cb4 \strokec3     Estimate A280 for 1 mg/mL in a 1 cm path-length cuvette.\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3     A = (
+\f1 \uc0\u949 
+\f0  / MW) * concentration(in mg/mL converted to molarity) * pathlength(1 cm)\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3     For 1 mg/mL, A \uc0\u8776  
+\f1 \uc0\u949 
+\f0  / (MW / 1000) * (1 g/L -> mol/L). Simplifies to: A \uc0\u8776  
+\f1 \uc0\u949 
+\f0  / (MW / 1000)\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3     i.e., A \uc0\u8776  (
+\f1 \uc0\u949 
+\f0  * 1000) / MW\cf2 \cb1 \strokec2 \
+\cf3 \cb4 \strokec3     """\cf2 \cb1 \strokec2 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     \cf5 \strokec5 if\cf2 \strokec2  mw <= \cf7 \strokec7 0\cf2 \strokec2 :\cb1 \
+\cb4         \cf5 \strokec5 return\cf2 \strokec2  \cf7 \strokec7 0.0\cf2 \cb1 \strokec2 \
+\cb4     \cf5 \strokec5 return\cf2 \strokec2  (ec * \cf7 \strokec7 1000.0\cf2 \strokec2 ) / mw\cb1 \
+\
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf9 \cb4 \strokec9 def\cf2 \strokec2  \cf10 \strokec10 print_report\cf2 \strokec2 (\cf11 \strokec11 seq\cf2 \strokec2 : \cf11 \strokec11 str\cf2 \strokec2 ):\cb1 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     seq = clean_sequence(seq)\cb1 \
+\cb4     seq = validate_and_warn(seq)\cb1 \
+\
+\cb4     n = \cf10 \strokec10 len\cf2 \strokec2 (seq)\cb1 \
+\cb4     comp = composition(seq)\cb1 \
+\cb4     mw = molecular_weight(seq)\cb1 \
+\cb4     ec = extinction_coefficient(seq)\cb1 \
+\cb4     a280_1mgml = absorbance_1mg_per_ml(ec, mw)\cb1 \
+\
+\cb4     \cf10 \strokec10 print\cf2 \strokec2 (\cf3 \strokec3 "\\n===== Protein Sequence Report ====="\cf2 \strokec2 )\cb1 \
+\cb4     \cf10 \strokec10 print\cf2 \strokec2 (\cf9 \strokec9 f\cf3 \strokec3 "Length: \cf2 \strokec2 \{n\}\cf3 \strokec3  aa"\cf2 \strokec2 )\cb1 \
+\cb4     \cf10 \strokec10 print\cf2 \strokec2 (\cf9 \strokec9 f\cf3 \strokec3 "Molecular Weight (approx.): \cf2 \strokec2 \{mw\cf7 \strokec7 :,.2f\cf2 \strokec2 \}\cf3 \strokec3  Da"\cf2 \strokec2 )\cb1 \
+\cb4     \cf10 \strokec10 print\cf2 \strokec2 (\cf9 \strokec9 f\cf3 \strokec3 "Extinction Coefficient (280 nm): \cf2 \strokec2 \{ec\}\cf3 \strokec3  (1/M/cm)"\cf2 \strokec2 )\cb1 \
+\cb4     \cf10 \strokec10 print\cf2 \strokec2 (\cf9 \strokec9 f\cf3 \strokec3 "Estimated A280 at 1 mg/mL (1 cm path): \cf2 \strokec2 \{a280_1mgml\cf7 \strokec7 :.3f\cf2 \strokec2 \}\cf3 \strokec3 "\cf2 \strokec2 )\cb1 \
+\cb4     \cf10 \strokec10 print\cf2 \strokec2 (\cf3 \strokec3 "\\nAmino-acid composition:"\cf2 \strokec2 )\cb1 \
+\cb4     \cf5 \strokec5 for\cf2 \strokec2  aa \cf9 \strokec9 in\cf2 \strokec2  \cf10 \strokec10 sorted\cf2 \strokec2 (VALID_AA):\cb1 \
+\cb4         \cf5 \strokec5 if\cf2 \strokec2  comp.get(aa, \cf7 \strokec7 0\cf2 \strokec2 ):\cb1 \
+\cb4             \cf10 \strokec10 print\cf2 \strokec2 (\cf9 \strokec9 f\cf3 \strokec3 "  \cf2 \strokec2 \{aa\}\cf3 \strokec3 : \cf2 \strokec2 \{comp[aa]\}\cf3 \strokec3 "\cf2 \strokec2 )\cb1 \
+\
+\
+\pard\pardeftab720\sl380\partightenfactor0
+\cf6 \cb4 \strokec6 # ------------------ Simple Interactive Runner ------------------\cf2 \cb1 \strokec2 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf5 \cb4 \strokec5 if\cf2 \strokec2  \cf11 \strokec11 __name__\cf2 \strokec2  == \cf3 \strokec3 "__main__"\cf2 \strokec2 :\cb1 \
+\pard\pardeftab720\sl380\partightenfactor0
+\cf2 \cb4     \cf6 \strokec6 # Roman Urdu prompts for ease:\cf2 \cb1 \strokec2 \
+\cb4     \cf10 \strokec10 print\cf2 \strokec2 (\cf3 \strokec3 "Protein Sequence Calculator"\cf2 \strokec2 )\cb1 \
+\cb4     \cf10 \strokec10 print\cf2 \strokec2 (\cf3 \strokec3 "Type your protein sequence here (just letters, A-Z):"\cf2 \strokec2 )\cb1 \
+\cb4     user_seq = \cf10 \strokec10 input\cf2 \strokec2 ().strip()\cb1 \
+\cb4     print_report(user_seq)\cb1 \
+}
